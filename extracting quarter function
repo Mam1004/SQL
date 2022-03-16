@@ -22,3 +22,30 @@ END IF;
 
 RETURN l_qtr;
 END get_quarter;
+
+ SELECT   I.INSID ,extract(YEAR from  v.vchdate) "YEAR",TRIM( LEADING '0' FROM TO_CHAR( v.vchdate, 'MM-YYYY') ) "MONTH",'Q'||get_quarter (v.vchdate) Quarter,
+sum(DECODE(A.ASMDRETRO ,   'A', (DECODE(A.ACCTTYPE,   'DTHCLM', (DECODE(D.DEBCRED,   'C',   D.AMOUNT * -1,   D.AMOUNT)),0)),0)) Asmd_amt,
+sum(DECODE(A.ASMDRETRO ,   'R', (DECODE(A.ACCTTYPE,   'DTHCLM', (DECODE(D.DEBCRED,   'C',   D.AMOUNT * -1,   D.AMOUNT)),0)),0)) RETRO_AMT,
+(sum(DECODE(A.ASMDRETRO ,   'A', (DECODE(A.ACCTTYPE,   'DTHCLM', (DECODE(D.DEBCRED,   'C',   D.AMOUNT * -1,   D.AMOUNT)),0)),0))+
+sum(DECODE(A.ASMDRETRO ,   'R', (DECODE(A.ACCTTYPE,   'DTHCLM', (DECODE(D.DEBCRED,   'C',   D.AMOUNT * -1,   D.AMOUNT)),0)),0))) net_amt
+
+
+FROM VCHDETAIL D, VOUCHER V, INSURED I, ACCOUNT A, CLAIM C, COMPANY M, TREATY_mb T, POLICY_mb P
+ WHERE C.CMPYNO = M.CMPYNO 
+ AND A.ACCTTYPE = 'DTHCLM' 
+ AND D.SEGMENT = 'USO' 
+ and (I.CAUSEOFDTH ='COV')
+ AND V.AUTHDATE IS NOT NULL 
+ AND C.CLAIMID = D.CLAIMID 
+ AND C.INSID = I.INSID
+ AND C.POLID = P.POLID(+) 
+ AND D.ACCTNO = A.ACCTNO 
+ AND D.VCHSEQ = V.VCHSEQ 
+ AND C.TRTYID = T.TRTYID
+ and i.insid in (select insid from cov_final)
+--and  A.ASMDRETRO ='R'
+and V.VCHTYPE='I'
+--and i.insid='793857'
+--and p.cedpolid='12557800'
+GROUP BY extract(YEAR from  v.vchdate),TRIM( LEADING '0' FROM TO_CHAR( v.vchdate, 'MM-YYYY') ),get_quarter (v.vchdate),i.insid
+order by i.insid;
