@@ -1,0 +1,15 @@
+select * from (
+
+select  count(cl.claimid) claim , CASE WHEN C.CLAIMREP LIKE 'OPS$%' THEN SUBSTR(C.CLAIMREP, 6, 3) ELSE C.CLAIMREP END AS REP,(select  to_char(min(lupdate), 'YYYY-MM')  from claimrmk where cl.claimid=claimid)"Reassignment Date"
+from claimrmk cl, claim c, username u
+where cl.claimid = c.claimid
+and c.claimrep = u.uname
+and clrmkcode in ('009','140','141','142','143','144','150')
+--and to_char(cl.lupdate, 'MM-YYYY')>='04-2020'
+and (select  to_char(min(lupdate), 'YYYY-MM')  from claimrmk where cl.claimid=claimid)>='2021-03'--change it for the current month / prior year (date provides 12 months of data)
+group by cl.lupdate, c.claimrep, fullname,cl.claimid
+)
+PIVOT 
+( count(claim) for  REP in ('DZB','RYM','KZZ','SZL','EJD','KYD','D1B','JJG','KAG','MAF','M1L','J2E','M3C','D3H','J1K','B2J','D3K','A3N','D4K','T6S','HXW','J9B','A3P'))--update it for the new assosciate
+
+
