@@ -1,0 +1,24 @@
+CREATE OR REPLACE FUNCTION get_quarter (p_date IN DATE)
+RETURN NUMBER
+AS
+l_qtr NUMBER;
+l_month NUMBER;
+BEGIN
+l_month := TO_CHAR (p_date, 'mm');
+
+IF l_month IN (1, 2, 3)
+THEN
+l_qtr := 1;
+ELSIF l_month IN (4, 5, 6)
+THEN
+l_qtr := 2;
+ELSIF l_month IN (7, 8, 9)
+THEN
+l_qtr := 3;
+ELSIF l_month IN (10, 11, 12)
+THEN
+l_qtr := 4;
+END IF;
+
+RETURN l_qtr;
+END get_quarter;
