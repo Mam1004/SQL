@@ -1,0 +1,16 @@
+SELECT  distinct w.STP_WORK_QUEUE_id, substr(W.NAME,1,4) as CMPY_ABRV,substr(W.NAME,6,5) as val, substr(MAX(C.TEXT),1,11) as STMT_DATE,W.NAME,
+regexp_substr(W.NAME, '[^-#]*', 1,10) Treaty_code,regexp_substr(W.NAME, '[^#]+', 1,3) PLAN_CODE,
+substr(MAX(C.TEXT),13,3) as IFR_RECONVERT, regexp_substr(c.text, '[^-]+', 1,5) as STMT_TYPE,W.CREATEDATE                      
+FROM STP_WORK_QUEUE W, STP_WORK_QUEUE_COMMENT C                        
+WHERE W.RESOLVED_DATE IS NULL                        
+AND W.STP_WORK_QUEUE_ID = C.STP_WORK_QUEUE_ID                        
+AND W.PROBLEM_TYPE IS  NULL   
+--AND W.CREATEDATE >='17-SEP-19' --(sysdate -1)
+--AND W.CREATEDATE >= (sysdate -1)
+and regexp_substr(c.text, '[^-]+', 1,5) in ('X','I')
+AND ( substr(W.NAME,6,5) = '31015'                                             
+OR substr(W.NAME,6,5)='31016') 
+--and substr(W.NAME,1,4) not in ('TNET','ZNET')  
+--and ((substr(W.NAME,1,4)   in ('TNET','ZNET')and trunc(w.CREATEDATE) !='06-MAY-2020') or (substr(W.NAME,1,4)  not in ('TNET','ZNET')))
+GROUP BY w.STP_WORK_QUEUE_id,W.NAME ,W.CREATEDATE,W.NAME,c.text
+order by substr(W.NAME,1,4),W.CREATEDATE ;
