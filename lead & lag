@@ -1,0 +1,67 @@
+--3/2/2020:M2C:v2  of this report removes the unwanted records ,which we use to filter in excel .
+--Helps to run the reporty faster than earlier,we use to copy and paste almost 28-30 K records  now v2 brings only 4-5 K records 
+
+
+
+DROP TABLE TD_FIN; 
+
+
+CREATE TABLE TD_FIN
+AS
+
+SELECT *
+FROM 
+  (SELECT P.GACMPY, P.CMPYNO, P.POLNO, P.BENEFITNO, P.DEALCODE, P.POLID, I.INSID, 
+  I.LNAME || ', ' || I.FNAME NAME, I.DOD, P.EFFDATE, P.TRTYID, T.BILLISTNO, 
+  POLVAL_XP.CURRENT_AAR(P.POLID) AAR,
+  P.POLSTATUS, P.STATDATE,c.CLM_PROCESSING_METHOD,
+  P.CMPYNO ||''||  P.POLNO||''|| P.BENEFITNO||''|| P.DEALCODE||''|| P.POLID||''|| I.INSID||''||
+  P.EFFDATE||''|| P.TRTYID||''||T.BILLISTNO||''||POLVAL_XP.CURRENT_AAR(P.POLID) comboid,
+  (case when C.CLM_PROCESSING_METHOD='BULK'AND POLVAL_XP.CURRENT_AAR(P.POLID)<'250000' then 'X' 
+WHEN  C.CLM_PROCESSING_METHOD != 'BULK' THEN '' END ) bulkfm
+  FROM POLICY_MB P
+    JOIN INSURED I ON P.INSID = I.INSID
+    JOIN TREATY_MB T ON P.TRTYID = T.TRTYID
+    JOIN BILL_LIST BL ON T.GACMPY = BL.GACMPY AND T.CMPYNO = BL.CMPYNO AND T.BILLISTNO = BL.BILLISTNO
+   LEFT JOIN CLAIM_PROCESSING_METHOD C
+  ON T.GACMPY = C.GACMPY  AND T.CMPYNO = C.CMPYNO AND T.BILLISTNO = C.BILLISTNO
+  WHERE P.POLSTATUS IN ('TD','TX') -- Added per multiple benefits 8/25/2020 SM
+  AND BL.BL_TEAM NOT IN (select cvalue1 from domain_plus where cname = 'IH_BILL_LIST_TEAMS' and cvalue2 = 'X' and languageid = '0')   ---------------> Excluding RECTYPE of 'H' from INPOLQRY view per portal 9452 on 11/29/2018 NPB
+  AND P.GACMPY in ('STL')
+  AND P.CMPYNO not in ('715', 'A36', 'P04', '749')                              --->Exclude Co PO4, 749 per portal 9001
+    AND NOT EXISTS
+      (SELECT *
+      FROM CLAIM C
+      WHERE C.POLID = P.POLID)
+     --and p.polno in ('833025012','000U939123','N100099730','996409424','M014005854','07017193','USB5558007','02505043')
+    AND P.STATDATE BETWEEN '&BEGDATE' AND '&ENDDATE'                           --->begdate = 5 yrs prior to reporting year; enddate = enddate of reporting month per portal 9001
+    and special_deal_rp.rga_risk_char(p.dealcode) = 'Y'                         --->Excludes Special dealcodes
+  GROUP BY P.GACMPY, P.CMPYNO, P.POLNO, P.BENEFITNO, P.DEALCODE, P.POLID, I.INSID, 
+    I.LNAME || ', ' || I.FNAME, I.DOD, P.EFFDATE, P.TRTYID, T.BILLISTNO, c.CLM_PROCESSING_METHOD,
+    P.POLSTATUS, P.STATDATE) X
+WHERE (X.CMPYNO, X.BILLISTNO) IN 
+  (SELECT B.CMPYNO, B.BILLISTNO 
+  FROM BILL_LIST B
+  WHERE B.SEGMENT = 'USO'
+  AND B.GACMPY = 'STL'
+  AND B.CMPYNO NOT IN ('715', 'A36', 'PO4', '749'))
+  ORDER BY 13,17;
+  
+
+with cte as
+(SELECT DISTINCT t2.* ,
+(case when T2.CLM_PROCESSING_METHOD !='CLMNETALL'   THEN ''
+WHEN T2.CLM_PROCESSING_METHOD='CLMNETALL' 
+and T2.COMBOID=(LAG(T2.COMBOID,1,0) OVER(ORDER BY T2.COMBOID ,T2.CLM_PROCESSING_METHOD))
+and (LAG(T2.bulkfm,1,0) OVER(ORDER BY T2.COMBOID ,T2.CLM_PROCESSING_METHOD))='X'   THEN 'X' END ) clmnet
+
+--"CLMNET",LAG(T2.COMBOID,1,0) OVER(ORDER BY T2.COMBOID,T2.CLM_PROCESSING_METHOD )
+FROM TD_FIN T2 
+ORDER BY 13,17)
+select  gacmpy,cmpyno,polno,benefitno,dealcode,polid,insid,name,dod,effdate,trtyid,billistno,aar,polstatus,statdate,clm_processing_method 
+from cte where bulkfm is null and clmnet is null;
+
+--SELECT * FROM TD_FIN 
+
+
+  
